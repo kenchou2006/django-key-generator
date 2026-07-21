@@ -13,14 +13,15 @@ const currentLang = ref(getBrowserLang())
 const translations = { en, zh }
 const t = (key) => translations[currentLang.value][key]
 
-const RANDOM_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*(-_=+)';
+// 64 chars = 2^6, no modulo bias when using Uint8Array
+const RANDOM_CHARS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*(-_=+)';
 
 const randomKey = (length) => {
   let result = '';
-  const array = new Uint32Array(length);
+  const array = new Uint8Array(length);
   window.crypto.getRandomValues(array);
   for (let i = 0; i < length; i++) {
-    result += RANDOM_CHARS[array[i] % RANDOM_CHARS.length];
+    result += RANDOM_CHARS[array[i] & 63]; // 63 = 64 - 1, bitwise AND avoids modulo bias
   }
   return result;
 }
