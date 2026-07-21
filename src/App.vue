@@ -13,73 +13,77 @@ const currentLang = ref(getBrowserLang())
 const translations = { en, zh }
 const t = (key) => translations[currentLang.value][key]
 
+const RANDOM_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*(-_=+)';
+
+const randomKey = (length) => {
+  let result = '';
+  const array = new Uint32Array(length);
+  window.crypto.getRandomValues(array);
+  for (let i = 0; i < length; i++) {
+    result += RANDOM_CHARS[array[i] % RANDOM_CHARS.length];
+  }
+  return result;
+}
+
+const copyToClipboard = async (valueRef, copiedRef) => {
+  if (!valueRef.value) return;
+  try {
+    await navigator.clipboard.writeText(valueRef.value)
+    copiedRef.value = true
+    setTimeout(() => {
+      copiedRef.value = false
+    }, 2000)
+  } catch (err) {
+    console.error('Failed to copy: ', err)
+  }
+}
+
 const secretKey = ref('')
 const isSecretKeyCopied = ref(false)
 const secretKeyLength = ref(50)
 
-const fernetKey = ref('')
-const isFernetKeyCopied = ref(false)
-
 const generateSecretKey = () => {
-  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*(-_=+)';
-  let result = '';
-  const length = Number(secretKeyLength.value);
-  const array = new Uint32Array(length);
-  window.crypto.getRandomValues(array);
-  for (let i = 0; i < length; i++) {
-    result += chars[array[i] % chars.length];
-  }
-  secretKey.value = result;
+  secretKey.value = randomKey(Number(secretKeyLength.value));
   isSecretKeyCopied.value = false;
 }
+const copySecretKey = () => copyToClipboard(secretKey, isSecretKeyCopied)
+
+const jwtSigningKey = ref('')
+const isJwtSigningKeyCopied = ref(false)
+const jwtSigningKeyLength = ref(64)
+
+const generateJwtSigningKey = () => {
+  jwtSigningKey.value = randomKey(Number(jwtSigningKeyLength.value));
+  isJwtSigningKeyCopied.value = false;
+}
+const copyJwtSigningKey = () => copyToClipboard(jwtSigningKey, isJwtSigningKeyCopied)
+
+const fernetKey = ref('')
+const isFernetKeyCopied = ref(false)
 
 const generateFernetKey = () => {
   // 生成 32 bytes 隨機資料
   const array = new Uint8Array(32);
   window.crypto.getRandomValues(array);
-  
+
   // 轉為 base64
   let binary = '';
   for (let i = 0; i < array.byteLength; i++) {
     binary += String.fromCharCode(array[i]);
   }
   const base64 = btoa(binary);
-  
+
   // 轉為 url-safe base64
   const urlSafeBase64 = base64.replace(/\+/g, '-').replace(/\//g, '_');
-  
+
   fernetKey.value = urlSafeBase64;
   isFernetKeyCopied.value = false;
 }
-
-const copySecretKey = async () => {
-  if (!secretKey.value) return;
-  try {
-    await navigator.clipboard.writeText(secretKey.value)
-    isSecretKeyCopied.value = true
-    setTimeout(() => {
-      isSecretKeyCopied.value = false
-    }, 2000)
-  } catch (err) {
-    console.error('Failed to copy: ', err)
-  }
-}
-
-const copyFernetKey = async () => {
-  if (!fernetKey.value) return;
-  try {
-    await navigator.clipboard.writeText(fernetKey.value)
-    isFernetKeyCopied.value = true
-    setTimeout(() => {
-      isFernetKeyCopied.value = false
-    }, 2000)
-  } catch (err) {
-    console.error('Failed to copy: ', err)
-  }
-}
+const copyFernetKey = () => copyToClipboard(fernetKey, isFernetKeyCopied)
 
 onMounted(() => {
   generateSecretKey()
+  generateJwtSigningKey()
   generateFernetKey()
 })
 </script>
@@ -94,27 +98,28 @@ onMounted(() => {
     </div>
 
     <h1>{{ t('title') }}</h1>
-    
+
     <div class="card">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
         <h2 style="margin: 0;">SECRET_KEY</h2>
         <div class="length-control" style="display: flex; align-items: center; gap: 10px;">
           <label for="length-slider" style="font-size: 0.9rem; color: #555;">{{ t('length') }} {{ secretKeyLength }}</label>
-          <input 
-            id="length-slider" 
-            type="range" 
-            min="50" 
-            max="100" 
-            v-model="secretKeyLength" 
+          <input
+            id="length-slider"
+            type="range"
+            min="50"
+            max="100"
+            v-model="secretKeyLength"
             @input="generateSecretKey"
             style="cursor: pointer;"
           >
         </div>
       </div>
+      <p class="hint">{{ t('secretKeyHint') }}</p>
       <div class="key-box">
         <code>{{ secretKey }}</code>
       </div>
-      
+
       <div class="controls">
         <button class="btn-primary" @click="generateSecretKey">{{ t('generateNew') }}</button>
         <button class="btn-secondary" @click="copySecretKey">{{ t('copy') }}</button>
@@ -126,11 +131,43 @@ onMounted(() => {
     </div>
 
     <div class="card mt-2">
-      <h2 style="text-align: left; margin-top: 0; margin-bottom: 1rem;">FIELD_ENCRYPTION_KEYS (Fernet)</h2>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h2 style="text-align: left; margin-top: 0; margin-bottom: 0.5rem;">JWT_SIGNING_KEY</h2>
+        <div class="length-control" style="display: flex; align-items: center; gap: 10px;">
+          <label for="jwt-length-slider" style="font-size: 0.9rem; color: #555;">{{ t('length') }} {{ jwtSigningKeyLength }}</label>
+          <input
+            id="jwt-length-slider"
+            type="range"
+            min="32"
+            max="128"
+            v-model="jwtSigningKeyLength"
+            @input="generateJwtSigningKey"
+            style="cursor: pointer;"
+          >
+        </div>
+      </div>
+      <p class="hint">{{ t('jwtSigningKeyHint') }}</p>
+      <div class="key-box">
+        <code>{{ jwtSigningKey }}</code>
+      </div>
+
+      <div class="controls">
+        <button class="btn-primary" @click="generateJwtSigningKey">{{ t('generateNew') }}</button>
+        <button class="btn-secondary" @click="copyJwtSigningKey">{{ t('copy') }}</button>
+      </div>
+
+      <div class="message">
+        <span v-if="isJwtSigningKeyCopied">{{ t('copied') }}</span>
+      </div>
+    </div>
+
+    <div class="card mt-2">
+      <h2 style="text-align: left; margin-top: 0; margin-bottom: 0.5rem;">FIELD_ENCRYPTION_KEYS (Fernet)</h2>
+      <p class="hint">{{ t('fernetKeyHint') }}</p>
       <div class="key-box">
         <code>{{ fernetKey }}</code>
       </div>
-      
+
       <div class="controls">
         <button class="btn-primary" @click="generateFernetKey">{{ t('generateNew') }}</button>
         <button class="btn-secondary" @click="copyFernetKey">{{ t('copy') }}</button>

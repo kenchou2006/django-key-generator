@@ -1,5 +1,11 @@
-# Vue 3 + Vite
+# Django Key Generators
 
-This template should help get you started developing with Vue 3 in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+A client-side tool for generating the cryptographic secrets commonly used in a Django project:
 
-Learn more about IDE Support for Vue in the [Vue Docs Scaling up Guide](https://vuejs.org/guide/scaling-up/tooling.html#ide-support).
+- `SECRET_KEY` — Django's standard secret key
+- `JWT_SIGNING_KEY` — for HS256 JWT access/refresh tokens (e.g. SimpleJWT)
+- `FIELD_ENCRYPTION_KEYS` — URL-safe Fernet key for field-level encryption
+
+All generation happens entirely in the browser using the Web Crypto API — no keys are ever sent over the network.
+
+Built with Vue 3 and Vite.
